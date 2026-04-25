@@ -42,7 +42,7 @@ pipeline {
             steps {
                 echo "Tagging Docker image for Nexus repository..."
                 sh """
-                docker tag ${IMAGE_NAME}:${IMAGE_TAG} ${NEXUS_HOST}/${NEXUS_REPO}/${IMAGE_NAME}:${IMAGE_TAG}
+                docker tag ${IMAGE_NAME}:${IMAGE_TAG} ${NEXUS_HOST}/${IMAGE_NAME}:${IMAGE_TAG}
                 """
             }
         }
@@ -69,7 +69,7 @@ pipeline {
             echo "Cleaning up local Docker images..."
             sh """
             docker rmi ${IMAGE_NAME}:${IMAGE_TAG} || true
-            docker rmi ${NEXUS_HOST}/${NEXUS_REPO}/${IMAGE_NAME}:${IMAGE_TAG} || true
+            docker rmi ${NEXUS_HOST}/${IMAGE_NAME}:${IMAGE_TAG} || true
             """
         }
         success {
