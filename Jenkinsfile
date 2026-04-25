@@ -2,7 +2,7 @@ pipeline {
     agent any
 
     options {
-        timeout(time: 2, unit: 'MINUTES') // Tiempo máximo para la ejecución del pipeline
+        timeout(time: 10, unit: 'MINUTES') // Tiempo máximo para la ejecución del pipeline
     }
 
     environment {
@@ -36,6 +36,27 @@ pipeline {
             echo "Ejecutando tests..."
             sh "docker run --rm ${IMAGE_NAME}:${IMAGE_TAG} npm test"
           }
+        }
+
+        stage('Security - Dependency Audit') {
+            steps {
+                echo "Auditando dependencias npm..."
+                sh "docker run --rm ${IMAGE_NAME}:${IMAGE_TAG} npm audit --audit-level=critical"
+            }
+        }
+
+        stage('Security - Trivy Image Scan') {
+            steps {
+                echo "Escaneando imagen con Trivy (vulnerabilidades criticas)..."
+                sh """
+                    docker run --rm \
+                        -v /var/run/docker.sock:/var/run/docker.sock \
+                        aquasec/trivy image \
+                        --severity CRITICAL \
+                        --exit-code 1 \
+                        ${IMAGE_NAME}:${IMAGE_TAG}
+                """
+            }
         }
         
         stage('Tag Docker Image') {
