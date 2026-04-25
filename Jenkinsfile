@@ -6,16 +6,22 @@ pipeline {
     }
 
     environment {
-        NEXUS_URL = "http://localhost:8083"
-        CREDENTIALS_ID = "f0142294-69d8-4e13-9215-33104e705eb6"
+        NEXUS_URL = "http://nexus:8083"
+        CREDENTIALS_ID = "nexus-credentials"
         IMAGE_NAME = "sumador" // Nombre de la imagen Docker
         IMAGE_TAG = "${env.BUILD_NUMBER}" // Etiqueta de la imagen basada en el número de build
-        NEXUS_HOST = "localhost:8083" // Host y puerto de Nexus
-        NEXUS_REPO = "repository/myrepo" // Ruta del repositorio en Nexus
+        NEXUS_HOST = "nexus:8083" // Host y puerto de Nexus
         ARTIFACT_ID = "elbuo8/webapp:${env.BUILD_NUMBER}"
     }
 
     stages {
+
+        stage('Checkout') {
+            steps {
+                echo "Código obtenido desde GitHub"
+            }
+        }
+
         stage('Build Docker Image') {
             steps {
                 echo "Building Docker image..."
@@ -27,7 +33,8 @@ pipeline {
 
         stage('Run tests') {
           steps {
-            sh "docker run ${IMAGE_NAME}:${IMAGE_TAG} npm test"
+            echo "Ejecutando tests..."
+            sh "docker run --rm ${IMAGE_NAME}:${IMAGE_TAG} npm test"
           }
         }
         
@@ -40,18 +47,20 @@ pipeline {
             }
         }
 
-        stage('Deploy Image') {
-          steps {
-            withCredentials([usernamePassword(credentialsId: CREDENTIALS_ID, usernameVariable: 'NEXUS_USERNAME', passwordVariable: 'NEXUS_PASSWORD')]) {
-                script {
-                  docker.withRegistry("${NEXUS_URL}", "${CREDENTIALS_ID}") {
-                    def imageName = "${IMAGE_NAME}:${IMAGE_TAG}"
-                    def dockerImage = docker.build(imageName, '.')
-                    dockerImage.push()
-                  }
+        stage('Deploy Image to Nexus') {
+            steps {
+                withCredentials([usernamePassword(
+                    credentialsId: "${CREDENTIALS_ID}",
+                    usernameVariable: 'NEXUS_USER',
+                    passwordVariable: 'NEXUS_PASS'
+                )]) {
+                    sh """
+                        echo \${NEXUS_PASS} | docker login ${NEXUS_HOST} -u \${NEXUS_USER} --password-stdin
+                        docker push ${NEXUS_HOST}/${IMAGE_NAME}:${IMAGE_TAG}
+                        docker logout ${NEXUS_HOST}
+                    """
                 }
             }
-          }
         }
     }
 
